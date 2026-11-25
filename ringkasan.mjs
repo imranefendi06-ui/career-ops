@@ -716,7 +716,9 @@ const dash = '<span class="muted">-</span>';
 const stMap = trackerStatus();
 const scanApplied = new Set(daftarScanDilamar().map(String));
 const scanDitutup = new Set(daftarScanDitutup().map(String));
-const appliedCount = semuaBaris.filter((r) => DONE.includes((stMap[parseInt(r.num, 10)] || '').toLowerCase())).length;
+const appliedCount = semuaBaris.filter((r) => (r.scan
+  ? scanApplied.has(String(r.scanId || idScan(r.url)))
+  : DONE.includes((stMap[parseInt(r.num, 10)] || '').toLowerCase()))).length;
 let siapHitung = 0;
 try { siapHitung = daftarSiap(MIN).length; } catch (e) { console.error('Gagal menghitung lowongan siap: ' + e.message); }
 
@@ -874,6 +876,7 @@ const wilayahSel = (r) => r.wilayah
 const atributBaris = (r) => [
   `data-num="${esc(r.num)}"`,
   `data-scan="${esc(r.scan ? String(r.scanId || idScan(r.url)) : '')}"`,
+  `data-applied="${r.scan ? (scanApplied.has(String(r.scanId || idScan(r.url))) ? '1' : '0') : (DONE.includes((stMap[parseInt(r.num, 10)] || '').toLowerCase()) ? '1' : '0')}"`,
   `data-skor="${r.skorTampil == null ? '0' : Number(r.skorTampil).toFixed(1)}"`,
   `data-belum="${r.scan ? '1' : '0'}"`,
   `data-wilayah="${esc((r.wilayah || '').toLowerCase())}"`,
@@ -953,7 +956,7 @@ const tableRows = semuaBaris.map((r) => {
   <td>${cvDipakai}</td>
   <td class="berkas">${berkas}</td>
   <td><span class="legit ${legitKelas(r.legit)}" title="${esc(r.legit)}">${esc(r.legit)}</span></td>
-  <td class="aksi"><div class="aksi-baris"><button class="lamar" data-num="${esc(r.num)}" title="Memakai 1 kredit">Lamar</button>${r.url ? lnk(r.url, 'Buka lowongan') : dash}<button class="buka-detail" type="button" aria-label="Ringkasan lowongan">Detail</button></div><div class="hasil"></div></td>
+  <td class="aksi"><div class="aksi-baris"><button class="lamar" data-num="${esc(r.num)}" title="Memakai 1 kredit; sisa __SISA_KUOTA__">Lamar · 1 kredit</button>${r.url ? lnk(r.url, 'Buka lowongan') : dash}<button class="buka-detail" type="button" aria-label="Ringkasan lowongan">Detail</button></div><div class="hasil"></div></td>
 </tr>`;
 }).join('\n');
 
@@ -989,7 +992,7 @@ ${rincian}
 <p class="meta">${esc(r.role)}${r.location ? ' — ' + esc(r.location) : ''}${r.gajiTeks ? ' — ' + esc(r.gajiTeks) : ''}${r.posted ? ' — diunggah ' + esc(r.posted) : ''}</p>
 <p class="links">${r.url ? lnk(r.url, 'Buka lowongan') : '<span class="muted">Link tidak ada</span>'}${berkas ? `<span class="muted">Berkas: ${berkas}</span>` : ''}${lnk('#atas', 'Kembali ke tabel', false)}</p>
 ${skor}${siap}${surat}${jd}
-<p class="muted" style="font-size:.84rem">CV dan surat dibuat otomatis dari cv.md${r.jdText ? '; penyesuaian memakai teks ringkas yang tertulis di iklan' : '; tanpa teks iklan, penyesuaian hanya memakai judul dan nama perusahaan'}. Skor cepat berbasis bukti, bukan evaluasi resmi; status legitimasi tetap "Belum dinilai". Tidak ada lamaran yang dikirim otomatis.</p>
+<p class="muted" style="font-size:.84rem">CV dan surat dibuat otomatis dari cv.md${r.jdText ? '; penyesuaian memakai teks ringkas yang tertulis di iklan' : '; tanpa teks iklan, penyesuaian hanya memakai judul dan nama perusahaan'}. Skor cepat berbasis bukti, bukan evaluasi resmi; status legitimasi tetap "Belum dinilai". Pengiriman mengikuti mode yang Anda pilih di Antrean Lamaran: manual (Anda yang menekan kirim) atau otomatis untuk akun isi ulang dengan batas harian.</p>
 </article>`;
 }).join('\n');
 
@@ -2093,7 +2096,7 @@ ${peringatanHtml}
   <details class="lanjutan" id="batchPanel">
     <summary>Buka antrean lamaran — __MODE_KIRIM_PENDEK__</summary>
     <div class="p-ctl" style="margin-top:10px">
-      <button id="lamarSemua" class="batch">Lamar Semua Siap (${siapHitung})</button>
+      <button id="lamarSemua" class="batch" title="Memakai 1 kredit per lowongan; sisa __SISA_KUOTA__">Lamar Semua Siap (${siapHitung})</button>
     </div>
     <div id="batchAlert" class="batch-alert" role="status" aria-live="assertive"></div>
     <pre id="batchLog" class="batchlog" hidden></pre>
@@ -2204,6 +2207,9 @@ ${details}
 <script id="scanTerakhir" type="application/json">__SCAN_TERAKHIR__</script>
 </main>
 <script>
+/* ===== Label status: dipakai saat centang/ditandai otomatis diperbarui ===== */
+const LABEL_STATUS_KLIEN = ${JSON.stringify(LABEL_STATUS)};
+const labelStatus = (x) => LABEL_STATUS_KLIEN[String(x || '').toLowerCase()] || x;
 /* ===== Profil lokal: satu server, satu root aktif ===== */
 const escP = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const profilDaftarEl = document.getElementById('profilDaftar');
@@ -2276,8 +2282,12 @@ profilDaftarEl.addEventListener('click', async (e) => {
 muatProfil();
 
 const cnt = () => {
-  const dilamar = document.querySelectorAll('table.main tbody tr.done').length;
-  const total = document.querySelectorAll('table.main tbody tr').length;
+  // Hitung dari seluruh baris, bukan dari baris yang sedang tampil di halaman.
+  // Baris scan yang dilewati karena halaman tidak ditemukan memakai kelas
+  // done untuk tampilan, tetapi bukan lamaran - jadi tidak dihitung di sini.
+  const baris = document.querySelectorAll('table.main tbody tr');
+  const dilamar = document.querySelectorAll('table.main tbody tr[data-applied="1"]').length;
+  const total = baris.length;
   document.getElementById('n').textContent = dilamar;
   const tb = document.getElementById('totalBaris'); if (tb) tb.textContent = total;
   document.getElementById('progres').style.width = (total ? Math.round(dilamar * 100 / total) : 0) + '%';
@@ -2303,13 +2313,16 @@ document.querySelectorAll('td.ck input').forEach((cb) => {
         if (h && h.textContent.trim() === '✓ Dilamar otomatis') h.textContent = '';
       }
       tr.classList.toggle('done', cb.checked);
+      tr.dataset.applied = cb.checked ? '1' : '0';
       tr.querySelector('.st').textContent = labelStatus(cb.checked ? 'Applied' : (cb.dataset.scanCb ? 'Baru' : 'Evaluated'));
       cnt();
       applyHide();
     } catch (e) { cb.checked = !cb.checked; alert('Gagal menyimpan: ' + e.message + '\\nPastikan halaman dibuka lewat http://127.0.0.1:${PORT}'); }
   });
 });
+const LAMAR_TEKS = 'Lamar · 1 kredit';
 document.querySelectorAll('button.lamar').forEach((b) => {
+  b.textContent = LAMAR_TEKS;
   b.addEventListener('click', async () => {
     const box = b.closest('td').querySelector('.hasil');
     b.disabled = true; b.textContent = 'Membuka...'; box.textContent = '';
@@ -2320,7 +2333,7 @@ document.querySelectorAll('button.lamar').forEach((b) => {
       box.textContent = j.ok ? j.msg : 'Gagal: ' + (j.error || j.msg || 'tidak diketahui');
       if (j.ok && j.dilamar) tandaiOtomatis(b.closest('tr').dataset.num);
     } catch (e) { box.textContent = 'Gagal: ' + e.message; }
-    b.disabled = false; b.textContent = 'Lamar';
+    b.disabled = false; b.textContent = LAMAR_TEKS;
   });
 });
 /* ---------- Lamar otomatis berurutan ---------- */
@@ -2466,6 +2479,7 @@ function tandaiOtomatis(num, status = 'Applied') {
     cb.title = status === 'Applied' ? 'Dilamar otomatis' : 'Dilewati: ' + status;
   }
   tr.classList.add('done');
+  tr.dataset.applied = status === 'Applied' ? '1' : '0';
   const st = tr.querySelector('.st');
   if (st) st.textContent = labelStatus(status);
   const h = tr.querySelector('.hasil');
@@ -3810,7 +3824,7 @@ async function tanganiRingkasan(req, res, u, mentah, paksa) {
         .replaceAll('__MODE_KIRIM_PENDEK__', escHtml(modePendek))
         .replaceAll('__MODE_KIRIM_TOOLTIP__', escHtml(modeTooltip))
         .replaceAll('__MODE_KIRIM_PANJANG__', modePanjang)
-        .replaceAll('__MODE_KIRIM_KONFIRMASI__', jsStr(modeKonfirmasi + ' Setiap lowongan memakai 1 kredit.'))
+        .replaceAll('__MODE_KIRIM_KONFIRMASI__', jsStr(modeKonfirmasi + ' Setiap lowongan memakai 1 kredit (sisa kredit sekarang ' + kuotaSaatIni().label + ').'))
         .replaceAll('__SCAN_TERAKHIR__', JSON.stringify(bacaTerakhir(ROOT())).replace(/</g, '\\u003c'));
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store, must-revalidate' });
       return res.end(teks);
