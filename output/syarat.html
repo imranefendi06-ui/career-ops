@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syarat Penggunaan — SiapLamar</title>
+<style>
+:root{--ink:#0f172a;--muted:#475569;--garis:#e2e8f0;--biru:#2563eb}
+*{box-sizing:border-box}body{margin:0;background:#f8fafc;color:var(--ink);font:15px/1.65 "Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:32px auto;padding:28px 32px;background:#fff;border:1px solid var(--garis);border-radius:14px;box-shadow:0 2px 10px #0f172a0a}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.08rem;margin:26px 0 8px;color:var(--biru)}
+.ket{color:var(--muted);font-size:.88rem;margin:0 0 18px}ul{padding-left:20px}li{margin:5px 0}
+.kotak{background:#fffbeb;border:1px solid #fde68a;border-radius:9px;padding:12px 14px;margin:16px 0;font-size:.9rem}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.9rem}th,td{border:1px solid var(--garis);padding:7px 9px;text-align:left}th{background:#f1f5f9}
+a{color:var(--biru)}footer{margin-top:26px;border-top:1px solid var(--garis);padding-top:14px;color:var(--muted);font-size:.82rem}
+</style></head><body><main>
+<h1>Syarat Penggunaan SiapLamar</h1>
+<p class="ket">Draf untuk uji tertutup · diperbarui 25 November 2026 · Berlaku bagi peserta yang mendapat undangan dari operator.</p>
+
+<div class="kotak"><strong>Status dokumen:</strong> uji tertutup untuk 3–5 orang. Pendaftaran hanya dengan kode undangan lewat tautan publik sementara dari operator. Pembayaran produksi belum aktif; Midtrans masih sandbox.</div>
+
+<h2>1. SiapLamar itu apa</h2>
+<p>SiapLamar membantu Anda: memindai lowongan, menyiapkan CV dan surat lamaran otomatis tanpa layanan AI berbayar, menyimpan hasil scan, dan mengelola antrean lamaran. Aplikasi berjalan di komputer operator; di komputer itu alamatnya <code>http://127.0.0.1:3000/</code>, sedangkan peserta mengakses lewat tautan HTTPS sementara yang dibagikan operator. Alamat publik dapat berubah bila terowongan di-restart.</p>
+<p>Saat ini layanan <strong>hanya untuk uji tertutup</strong>: pendaftaran memakai kode undangan yang dibagikan operator, satu kode untuk satu email.</p>
+
+<h2>2. Anda tetap yang memutuskan</h2>
+<ul>
+<li><strong>Trial/manual:</strong> SiapLamar menyiapkan CV dan jawaban, browser dibuka, dan Anda sendiri yang memeriksa serta menekan lanjut/kirim. SiapLamar tidak menekan tombol Kirim di browser Anda.</li>
+<li><strong>Setelah top up:</strong> kirim otomatis aktif, dibatasi <strong>5 lamaran per hari</strong>. Tiap batch tetap memerlukan konfirmasi eksplisit dan dicatat; operator tidak dibatasi.</li>
+<li>Jawaban yang sudah Anda simpan dipakai lagi untuk lowongan berikutnya; bila belum ada jawaban, pilihan default <em>Ya / Yes</em> dipakai, dan bila ada pilihan bahasa, <em>English</em> dipilih. Anda tetap bisa mengubahnya sebelum mengirim.</li>
+<li>Lowongan yang mati atau 404 dilewati, ditandai <em>Discarded</em>, dan tidak dikirim.</li>
+<li><strong>Skor cepat bukan evaluasi resmi career-ops dan bukan peluang diterima.</strong> Skor hanya untuk mengurutkan antrean.</li>
+</ul>
+
+<h2>3. Akun, verifikasi, dan kata sandi</h2>
+<ul>
+<li>Satu alamat email hanya mendapat satu kali trial. Domain email sekali pakai ditolak.</li>
+<li>Kode verifikasi 6 dikirim lewat email dan berlaku 10 menit.</li>
+<li>Kata sandi disimpan dalam bentuk ter-hash, bukan teks asli.</li>
+<li>Tautan lupa sandi berlaku 30 menit dan hanya bisa dipakai sekali. Memakainya membuat semua sesi lama keluar.</li>
+<li>Sesi disimpan di memori server: bila server direstart, semua akun otomatis logout dan harus login lagi.</li>
+<li>Jangan membagikan akun. Setiap akun berisi data lamaran Anda sendiri dan terpisah dari akun lain.</li>
+</ul>
+
+<h2>4. Kredit dan pembayaran</h2>
+<ul>
+<li>Trial: <strong>3 kredit gratis</strong> setelah email terverifikasi.</li>
+<li>1 kredit = 1 lowongan yang diproses lewat tombol <strong>Lamar</strong> atau <strong>Lamar Semua Siap</strong>.</li>
+<li>Memindai, memfilter, menyimpan preset, membuka detail, dan mengganti profil <strong>tidak memotong kredit</strong>.</li>
+<li>Lowongan yang sama tidak dipotong dua kali. Kegagalan sebelum browser dibuka tidak dipotong. Antrean dibatasi sisa kredit.</li>
+<li>Kirim otomatis hanya untuk akun yang sudah top-up, maksimal 5 lamaran per hari; trial tetap manual tanpa kuota harian.</li>
+</ul>
+<table>
+<tr><th>Paket</th><th>Harga</th></tr>
+<tr><td>10 kredit</td><td>Rp 30.000</td></tr>
+<tr><td>30 kredit</td><td>Rp 75.000</td></tr>
+<tr><td>60 kredit</td><td>Rp 120.000</td></tr>
+<tr><td>Langganan bulanan, 40 kredit</td><td>Rp 89.000</td></tr>
+</table>
+<ul>
+<li>Kredit berlaku 90 hari. <strong>Perpanjangan otomatis belum aktif</strong> dan dinyatakan demikian di halaman kuota.</li>
+<li>Selama uji tertutup, pembayaran sungguhan <strong>belum diaktifkan</strong> (Midtrans masih sandbox). Jangan mengirim uang langsung kepada siapa pun.</li>
+</ul>
+
+<h2>5. Penggunaan yang tidak dibolehkan</h2>
+<ul>
+<li>Mengirim lamaran massal tanpa membacanya, atau memalsukan data diri, pengalaman, dan capaian.</li>
+<li>Melanggar aturan portal lowongan atau situs perusahaan yang dikunjungi.</li>
+<li>Mencoba membaca data akun lain, mengakses berkas di luar akun sendiri, atau membagikan tautan undangan.</li>
+<li>Mengandalkan skor cepat sebagai jaminan diterima.</li>
+</ul>
+
+<h2>6. Ketersediaan dan cadangan</h2>
+<p>Aplikasi bergantung pada komputer, listrik, dan koneksi operator. Bukan layanan yang hidup 24 jam; tautan publik sementara dapat berubah. Cadangan dibuat otomatis setiap pukul 03.00 ke drive terpisah di komputer yang sama dengan retensi 7 salinan — <strong>bukan cadangan di cloud</strong>. Bila perangkat rusak secara fisik, data dapat hilang.</p>
+
+<h2>7. Perubahan</h2>
+<p>Syarat ini dapat diperbarui saat layanan keluar dari uji tertutup. Anda akan diberi tahu bila ada perubahan yang berpengaruh pada akun atau kredit.</p>
+
+<footer>Dokumen terkait: <a href="/privasi">Kebijakan Privasi</a> · <a href="/panduan-beta">Panduan Peserta Beta</a></footer>
+</main></body></html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kebijakan Privasi — SiapLamar</title>
+<style>
+:root{--ink:#0f172a;--muted:#475569;--garis:#e2e8f0;--biru:#2563eb}
+*{box-sizing:border-box}body{margin:0;background:#f8fafc;color:var(--ink);font:15px/1.65 "Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:32px auto;padding:28px 32px;background:#fff;border:1px solid var(--garis);border-radius:14px;box-shadow:0 2px 10px #0f172a0a}
+h1{font-size:1.5rem;margin:0 0 4px}h2{font-size:1.08rem;margin:26px 0 8px;color:var(--biru)}
+.ket{color:var(--muted);font-size:.88rem;margin:0 0 18px}ul{padding-left:20px}li{margin:5px 0}
+.kotak{background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;margin:16px 0;font-size:.9rem}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.9rem}th,td{border:1px solid var(--garis);padding:7px 9px;text-align:left;vertical-align:top}th{background:#f1f5f9}
+a{color:var(--biru)}footer{margin-top:26px;border-top:1px solid var(--garis);padding-top:14px;color:var(--muted);font-size:.82rem}
+code{background:#f1f5f9;padding:1px 4px;border-radius:4px}
+</style></head><body><main>
+<h1>Kebijakan Privasi SiapLamar</h1>
+<p class="ket">Draf untuk uji tertutup · diperbarui 25 November 2026 · Diperbarui seiring layanan keluar dari uji tertutup.</p>
+
+<div class="kotak"><strong>Singkatnya:</strong> data Anda disimpan di komputer operator, bukan di server cloud. Tiap akun terpisah. Email dipakai hanya untuk verifikasi dan atur ulang sandi. Tidak ada nomor HP/WA yang diminta, tidak ada iklan, tidak ada penjualan data.</div>
+
+<h2>1. Data yang kami simpan</h2>
+<table>
+<tr><th>Jenis</th><th>Keterangan</th></tr>
+<tr><td>Akun</td><td>Alamat email, nama akun, kata sandi dalam bentuk ter-hash (bukan teks asli), status verifikasi.</td></tr>
+<tr><td>Kredit</td><td>Sisa kredit, riwayat pemakaian, riwayat pembayaran, serta kunci idempotensi agar lowongan yang sama tidak dipotong dua kali.</td></tr>
+<tr><td>Data lamaran</td><td>CV, tracker lamaran, laporan, surat yang dibuat, hasil scan, preset pencarian, dan profil lokal yang Anda buat.</td></tr>
+<tr><td>Verifikasi</td><td>Kode verifikasi dan tautan atur ulang sandi disimpan ter-hash, bukan apa-adanya.</td></tr>
+<tr><td>Unggahan PDF</td><td>Bila Anda mengunggah CV PDF, teksnya dibaca di komputer operator lalu dirapikan menjadi teks cv.md. File PDF aslinya tidak disimpan dan tidak dikirim ke layanan AI.</td></tr>
+<tr><td>Teknis</td><td>Cookie sesi dan token CSRF untuk menjaga akun tetap terpisah dan mencegah pengiriman form dari situs lain.</td></tr>
+</table>
+
+<h2>2. Di mana data disimpan</h2>
+<p>Di komputer operator, di dalam folder data SiapLamar. Server hanya mendengarkan di <code>127.0.0.1:3000</code> (alamat lokal). Selama uji tertutup ini, peserta mengakses lewat terowongan Cloudflare sementara yang diatur operator; alamatnya dapat berubah bila terowongan di-restart. Koneksi melewati Cloudflare, tetapi aplikasi tidak memakai layanan iklan atau analitik pihak ketiga. Setiap akun punya folder data sendiri; akun lain tidak bisa membacanya.</p>
+
+<h2>3. Siapa yang bisa melihat</h2>
+<ul>
+<li>Anda, lewat akun Anda.</li>
+<li>Operator, untuk menjalankan layanan, membantu saat Anda meminta bantuan, dan membuat cadangan.</li>
+<li>Kami tidak menjual, menyewakan, atau memberikan data Anda kepada pihak ketiga untuk iklan atau pemasaran.</li>
+</ul>
+
+<h2>4. Email dan penyedia layanan</h2>
+<ul>
+<li>Email verifikasi dan tautan atur ulang sandi dikirim lewat <strong>Mailjet</strong>. Alamat email Anda dan isi email tersebut diproses oleh penyedia ini.</li>
+<li>Kami tidak meminta nomor telepon atau WhatsApp.</li>
+<li>Pembayaran (bilamana sudah aktif) diproses oleh <strong>Midtrans</strong>. Detail kartu tidak disimpan aplikasi ini. Selama uji tertutup, Midtrans masih dalam mode sandbox.</li>
+</ul>
+
+<h2>5. Cookie dan keamanan</h2>
+<ul>
+<li><code>rk_sid</code> — sesi login, berlaku 12 jam dan disimpan di memori server; restart server membuat semua sesi berakhir.</li>
+<li><code>rk_pub</code> — token CSRF untuk halaman yang belum login, berlaku untuk halaman publik.</li>
+<li>Keduanya memakai <code>HttpOnly</code> dan <code>SameSite=Lax</code>, serta <code>Secure</code> bila diakses lewat HTTPS. Form juga membawa token CSRF tersembunyi.</li>
+<li>Kata sandi dan token sensitif tidak pernah ditampilkan kembali di halaman atau log.</li>
+</ul>
+
+<h2>6. Cadangan</h2>
+<p>Cadangan dibuat setiap hari pukul 03.00 ke <code>D:\SiapLamar-Backup</code> dengan retensi 7 salinan. Cadangan mencakup data lamaran dan berkas konfigurasi layanan yang berisi kunci akses email/pembayaran. Karena itu folder cadangan <strong>harus dijaga dan tidak dibagikan</strong>. Cadangan ini lokal, bukan cloud.</p>
+
+<h2>7. Berapa lama disimpan</h2>
+<table>
+<tr><th>Data</th><th>Lama</th></tr>
+<tr><td>Sesi login</td><td>12 jam, atau sampai server direstart</td></tr>
+<tr><td>Kode verifikasi</td><td>10 menit</td></tr>
+<tr><td>Tautan atur ulang sandi</td><td>30 menit, sekali pakai</td></tr>
+<tr><td>Kredit</td><td>90 hari sejak diperoleh</td></tr>
+<tr><td>Data lamaran dan CV</td><td>Selama akun aktif; cadangan harian disimpan 7 salinan terakhir</td></tr>
+</table>
+
+<h2>8. Hak Anda</h2>
+<p>Anda bisa meminta salinan data, meminta pembetulan, atau meminta penghapusan akun dengan menghubungi operator. Saat ini <strong>belum ada tombol hapus akun di tampilan</strong>, jadi permintaan diproses manual. Menghapus akun berarti CV, tracker, laporan, hasil scan, dan preset ikut terhapus dari layanan.</p>
+
+<h2>9. Perubahan kebijakan</h2>
+<p>Dokumen ini akan diperbarui bila layanan dibuka untuk umum, terutama bila alamat akses, penyedia email/pembayaran, atau tempat cadangan berubah.</p>
+
+<footer>Dokumen terkait: <a href="/syarat">Syarat Penggunaan</a> · <a href="/panduan-beta">Panduan Peserta Beta</a></footer>
+</main></body></html>
