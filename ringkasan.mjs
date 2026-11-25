@@ -893,6 +893,9 @@ const alasanCocok = (r) => {
   return bukti.length ? 'Cocok dari CV: ' + bukti.join(', ') : '';
 };
 
+const LABEL_STATUS = { baru: 'Baru', evaluated: 'Dinilai', applied: 'Dilamar', responded: 'Dibalas', assessment: 'Tes', interview: 'Wawancara', offer: 'Penawaran', hired: 'Diterima', rejected: 'Ditolak', discarded: 'Dibuang', skip: 'Dilewati' };
+const labelStatus = (x) => LABEL_STATUS[String(x || '').toLowerCase()] || x;
+
 const tableRows = semuaBaris.map((r) => {
   const kolomTengah = [
     `<td>${wilayahSel(r)}</td>`,
@@ -924,7 +927,7 @@ const tableRows = semuaBaris.map((r) => {
   </td>
   ${kolomTengah}
   <td>${skor}</td>
-  <td><span class="st ${sudah ? 'st-done' : ''}">${ditutup ? 'Discarded' : sudah ? 'Applied' : 'Baru'}</span></td>
+  <td><span class="st ${sudah ? 'st-done' : ''}">${labelStatus(ditutup ? 'Discarded' : sudah ? 'Applied' : 'Baru')}</span></td>
   <td>${cvDipakai}</td>
   <td class="berkas">${[
     r.cvScan ? chip(r.cvScan.href, 'Lihat draf CV') : '',
@@ -946,11 +949,11 @@ const tableRows = semuaBaris.map((r) => {
   <td class="job"><div class="t"><strong>${esc(r.company)}</strong><span class="no">#${esc(r.num)}</span></div><div class="role">${esc(r.role)}</div></td>
   ${kolomTengah}
   <td><span class="skor ${skorKelas(r.score)}" title="Skor laporan — bukan penilaian A–H resmi dan bukan peluang diterima">${r.score.toFixed(1)}</span></td>
-  <td><span class="st ${done ? 'st-done' : ''}" data-s="${esc((st || '').toLowerCase())}">${esc(st || 'Belum tercatat')}</span></td>
+  <td><span class="st ${done ? 'st-done' : ''}" data-s="${esc((st || '').toLowerCase())}">${esc(st ? labelStatus(st) : 'Belum tercatat')}</span></td>
   <td>${cvDipakai}</td>
   <td class="berkas">${berkas}</td>
   <td><span class="legit ${legitKelas(r.legit)}" title="${esc(r.legit)}">${esc(r.legit)}</span></td>
-  <td class="aksi"><div class="aksi-baris"><button class="lamar" data-num="${esc(r.num)}">Lamar</button>${r.url ? lnk(r.url, 'Buka lowongan') : dash}<button class="buka-detail" type="button" aria-label="Ringkasan lowongan">Detail</button></div><div class="hasil"></div></td>
+  <td class="aksi"><div class="aksi-baris"><button class="lamar" data-num="${esc(r.num)}" title="Memakai 1 kredit">Lamar</button>${r.url ? lnk(r.url, 'Buka lowongan') : dash}<button class="buka-detail" type="button" aria-label="Ringkasan lowongan">Detail</button></div><div class="hasil"></div></td>
 </tr>`;
 }).join('\n');
 
@@ -1079,6 +1082,14 @@ const peringatanHtml = peringatanData.length
     <ul>${peringatanData.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
   </section>`
   : '';
+
+const langkahBerikut = semuaBaris.length === 0
+  ? (cvScan
+    ? { teks: 'Belum ada lowongan. Buka langkah 2, pilih wilayah dan gaji, lalu tekan “Cari lowongan”.', href: '#scan', tombol: 'Cari lowongan' }
+    : { teks: 'Mulai dari sini: pasang CV Anda (langkah 1), lalu cari lowongan (langkah 2).', href: '#cv', tombol: 'Pasang CV' })
+  : siapHitung > 0
+    ? { teks: siapHitung + ' lowongan siap dilamar. Periksa daftarnya, lalu tekan Lamar.', href: '#hasil', tombol: 'Lihat lowongan' }
+    : { teks: 'Periksa daftar lowongan di bawah, lalu tekan Detail atau Lamar pada yang cocok.', href: '#hasil', tombol: 'Lihat lowongan' };
 
 const html = `<!DOCTYPE html>
 <html lang="id">
@@ -1807,6 +1818,17 @@ const html = `<!DOCTYPE html>
     .top { flex-direction: column; align-items: stretch; }
     article { padding: 18px; }
   }
+  [hidden] { display: none !important; }
+  html { scroll-padding-top: 64px; }
+  .stats { grid-template-columns: repeat(3, 1fr); }
+  .navatas { position: sticky; top: 0; z-index: 30; display: flex; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 8px 10px; margin-bottom: 16px; box-shadow: var(--shadow-card); }
+  .navatas a { padding: 4px 12px; border-radius: 999px; font-size: 0.86rem; color: var(--text-sec); }
+  .navatas a:hover { background: var(--accent-soft); text-decoration: none; }
+  .langkah-berikut { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; }
+  .langkah-berikut div { display: flex; flex-direction: column; gap: 2px; }
+  .pengaturan { margin-top: 28px; }
+  .detail-list > details > summary { cursor: pointer; font-size: 1rem; }
+  @media (max-width: 600px) { .stats { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 </style>
 </head>
@@ -1815,11 +1837,11 @@ const html = `<!DOCTYPE html>
 <header class="top" id="atas">
   <div>
     <h1>SiapLamar</h1>
-    <p class="sub">Ringkasan lamaran skor minimal ${MIN.toFixed(1)} (nomor terbaru di atas) · Dibuat ${esc(new Date().toLocaleString('id-ID'))}.</p>
+    <p class="sub">Cari lowongan, siapkan CV &amp; surat lamaran, lalu lamar — Anda tetap yang memantau. · Diperbarui ${esc(new Date().toLocaleString('id-ID'))}.</p>
   </div>
   <div class="akun">
     <span class="badge badge-neutral" title="Akun yang sedang masuk">__NAMA_PENGGUNA__</span>
-    <a class="btn" href="/kuota" title="Sisa kredit dan riwayat pemakaian">🎟️ Kuota: __SISA_KUOTA__</a>
+    <a class="btn" href="/kuota" title="1 kredit = 1 lowongan yang dilamar lewat tombol Lamar. Klik untuk riwayat dan isi ulang">🎟️ Kredit: __SISA_KUOTA__</a>
     <a class="btn" href="?paksa=1" title="Bangun ulang ringkasan dari data terbaru">⚡ Segarkan Data</a>
     <form method="post" action="/logout" class="keluar-form">
       <input type="hidden" name="_csrf" value="__CSRF_TOKEN__">
@@ -1828,41 +1850,23 @@ const html = `<!DOCTYPE html>
   </div>
 </header>
 
+<nav class="navatas" aria-label="Navigasi bagian"><a href="#cv">1 · CV</a><a href="#scan">2 · Cari</a><a href="#hasil">3 · Hasil</a><a href="#detail">Surat lamaran</a><a href="#pengaturan">Pengaturan</a></nav>
+
+<section class="langkah-berikut" role="note"><div><b>Langkah berikutnya</b><span>${esc(langkahBerikut.teks)}</span></div><a class="btn" href="${langkahBerikut.href}">${esc(langkahBerikut.tombol)}</a></section>
+
 <section class="onboarding" aria-label="Panduan mulai">
   <a class="onboarding-step" id="langkahCv" href="#cv"><span class="n">1</span><div><b>Pasang CV</b><span>Unggah PDF; teks dibaca otomatis dan tetap Anda setujui.</span></div></a>
   <a class="onboarding-step ${scanRows.length ? 'selesai' : ''}" href="#scan"><span class="n">2</span><div><b>Pilih wilayah &amp; gaji</b><span>Pekerjaan diambil dari CV. Ubah bila perlu.</span></div></a>
-  <a class="onboarding-step ${appliedCount ? 'selesai' : ''}" href="#hasil"><span class="n">3</span><div><b>Lihat hasil</b><span>Lowongan + draf CV dan surat sudah disiapkan. Anda yang kirim.</span></div></a>
+  <a class="onboarding-step ${appliedCount ? 'selesai' : ''}" href="#hasil"><span class="n">3</span><div><b>Lihat hasil</b><span>Lowongan + draf CV dan surat sudah disiapkan. Periksa dulu, lalu lamar dari tabel atau dari Antrean Lamaran bila tersedia.</span></div></a>
 </section>
 
 <section class="stats" aria-label="Angka ringkas">
-  <div class="stat"><span class="k">Total Lowongan Terdaftar</span><span class="v">${semuaBaris.length}</span></div>
-  <div class="stat"><span class="k">Sudah Dilamar</span><span class="v"><span id="n">${appliedCount}</span><small>dari ${rows.length} dinilai</small></span><div class="meter"><i id="progres" style="width:${rows.length ? Math.round((appliedCount * 100) / rows.length) : 0}%"></i></div></div>
-  <div class="stat"><span class="k">Belum Dilamar</span><span class="v" id="belum">${rows.length - appliedCount}</span></div>
-  <div class="stat"><span class="k">Hasil Scan Baru</span><span class="v">${scanRows.length}</span></div>
-  <div class="stat" title="__MODE_KIRIM_TOOLTIP__"><span class="k">Siap Diproses</span><span class="v" style="color:var(--accent)">${siapHitung}</span></div>
+  <div class="stat"><span class="k">Total Lowongan</span><span class="v">${semuaBaris.length}</span></div>
+  <div class="stat"><span class="k">Sudah Dilamar</span><span class="v"><span id="n">${appliedCount}</span><small>dari <span id="totalBaris">${semuaBaris.length}</span> lowongan</small></span><div class="meter"><i id="progres" style="width:${semuaBaris.length ? Math.round((appliedCount * 100) / semuaBaris.length) : 0}%"></i></div></div>
+  <div class="stat" title="__MODE_KIRIM_TOOLTIP__"><span class="k">Siap Dilamar</span><span class="v" style="color:var(--accent)">${siapHitung}</span></div>
 </section>
 
 ${peringatanHtml}
-
-<section class="panel profil-panel" aria-label="Profil lokal">
-  <div class="p-head">
-    <div>
-      <h2>👤 Profil Lokal</h2>
-      <p class="muted" style="margin:2px 0 0;font-size:.88rem">Satu server, satu profil aktif. Memindah profil mengganti CV, tracker, laporan, hasil scan, dan preset yang dipakai halaman ini.</p>
-    </div>
-    <div class="p-ctl"><span id="profilAktif" class="badge badge-neutral">${profilSekarang.ok ? esc(profilSekarang.profil.nama) : 'Profil tidak diketahui'}</span></div>
-  </div>
-  <details class="lanjutan">
-    <summary>Buka pengaturan profil lokal</summary>
-    <div id="profilDaftar" class="profil-daftar"><span class="muted" style="font-size:.85rem">Memuat daftar profil…</span></div>
-    <div class="profil-buat">
-      <input type="text" id="profilNamaBaru" placeholder="Nama profil baru" aria-label="Nama profil baru">
-      <button id="profilBuat" class="btn sm" type="button">Buat profil kosong</button>
-      <span id="profilStatus" class="profil-status" role="status" aria-live="polite"></span>
-    </div>
-    <p class="scan-catatan" style="margin:8px 0 0">Profil baru dimulai kosong: tidak ada CV, gaji, lokasi, pengalaman, atau skor yang disalin dari profil lain. Profil tidak dihapus otomatis supaya data tidak hilang.</p>
-  </details>
-</section>
 
 <section class="panel cv" id="cv" aria-label="CV saya">
   <div class="p-head">
@@ -1886,7 +1890,7 @@ ${peringatanHtml}
       <pre id="cvIsi" class="cv-isi" hidden></pre>
     </div>
 
-    <div class="cv-kartu">
+    <div class="cv-kartu" id="cvKartuArsip" hidden>
       <div class="cv-label">Ganti ke versi tersimpan</div>
       <select id="cvPilihArsip" aria-label="Pilih versi CV">
         <option value="">— belum ada versi tersimpan —</option>
@@ -2070,43 +2074,25 @@ ${peringatanHtml}
 
   <div class="scan-aksi">
     <button id="scanBaru" class="scan-btn" type="button">Cari lowongan</button>
-    <span class="scan-catatan">Lowongan bertanggal &gt;14 hari dibuang; yang tanpa tanggal tetap tampil dan ditandai.</span>
-  </div>
+    <span class="scan-catatan">Lowongan lebih dari 14 hari dibuang (batas lebih ketat bisa diatur di “Atur wilayah, rentang gaji, dan umur lowongan”); yang tanpa tanggal tetap tampil dan ditandai.</span>
 
-  <details class="lanjutan" id="presetPanel">
-    <summary>Preset pencarian (opsional)</summary>
-    <div class="preset-panel" aria-label="Preset pencarian">
-      <div class="preset-judul">
-        <label class="k" for="namaPreset">Preset pencarian</label>
-        <span class="scan-catatan">Simpan pilihan wilayah, gaji, dan umur supaya bisa dipakai lagi. Tidak menjalankan scan dan tidak mengirim lamaran.</span>
-      </div>
-      <div class="preset-baris">
-        <input type="text" id="namaPreset" placeholder="Nama preset, misal: Riau 7 hari" aria-label="Nama preset">
-        <button id="presetSimpan" class="btn sm" type="button">Simpan preset ini</button>
-        <span id="presetStatus" class="preset-status" role="status" aria-live="polite"></span>
-      </div>
-      <div id="presetDaftar" class="preset-daftar"><span class="muted" style="font-size:.85rem">Belum ada preset tersimpan.</span></div>
-    </div>
-  </details>
+  </div>
 
   <div id="scanStatus" class="scan-status" role="status" aria-live="polite"></div>
   <div id="scanHasil" class="scan-hasil" hidden></div>
 </section>
 
-<section class="panel otomatis" aria-label="Lamar otomatis">
+<section class="panel otomatis" aria-label="Lamar otomatis"${siapHitung > 0 ? '' : ' hidden'}>
   <div class="p-head">
     <div>
       <h2>🚀 Antrean Lamaran</h2>
       <p id="batchStatus" class="muted">__MODE_KIRIM_PANJANG__</p>
+      <p class="scan-catatan" style="margin:6px 0 0">Setiap lowongan yang dilamar memakai 1 kredit. Lamaran dibuka di Google Chrome pada komputer yang menjalankan SiapLamar.</p>
     </div>
   </div>
   <details class="lanjutan" id="batchPanel">
     <summary>Buka antrean lamaran — __MODE_KIRIM_PENDEK__</summary>
     <div class="p-ctl" style="margin-top:10px">
-      <details class="lanjutan"><summary>Suara (opsional)</summary>
-        <label class="sw" title="Bunyi alarm saat otomatisasi berhenti karena butuh jawaban atau dokumen tidak cocok"><input type="checkbox" id="suaraNotifikasi" checked> Audio Status</label>
-        <button id="ujiSuara" class="btn sm" type="button">Uji suara</button>
-      </details>
       <button id="lamarSemua" class="batch">Lamar Semua Siap (${siapHitung})</button>
     </div>
     <div id="batchAlert" class="batch-alert" role="status" aria-live="assertive"></div>
@@ -2129,18 +2115,18 @@ ${peringatanHtml}
       <select id="umurMaks" aria-label="Umur lowongan maksimum">
         <option value="">Umur: semua</option><option value="0">Hari ini</option><option value="3">≤ 3 hari</option><option value="7">≤ 7 hari</option><option value="14">≤ 14 hari</option>
       </select>
-      <select id="filterStatus" aria-label="Filter status"><option value="">Semua status</option>${['Baru', 'Evaluated', 'Applied', 'Responded', 'Assessment', 'Interview', 'Offer', 'Hired', 'Rejected', 'Discarded', 'SKIP'].map((s) => `<option value="${s.toLowerCase()}">${s}</option>`).join('')}</select>
-      <span class="muted" style="font-size:.8rem" title="Skor cepat/evaluasi career-ops untuk baris yang punya laporan. Bukan peluang diterima. Hasil scan tanpa laporan tetap tampil, apa pun filternya.">Skor laporan (bukan peluang):</span>
+      <select id="filterStatus" aria-label="Filter status"><option value="">Semua status</option>${['Baru', 'Evaluated', 'Applied', 'Responded', 'Assessment', 'Interview', 'Offer', 'Hired', 'Rejected', 'Discarded', 'SKIP'].map((s) => `<option value="${s.toLowerCase()}">${labelStatus(s)}</option>`).join('')}</select>
+      <span class="muted" style="font-size:.8rem" title="Skor cepat/evaluasi career-ops untuk baris yang punya laporan. Bukan peluang diterima. Hasil scan tanpa laporan tetap tampil, apa pun filternya.">Skor minimal:</span>
       <select id="skorMin" aria-label="Skor laporan minimum">${[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5].map((n) => `<option value="${n}"${n === 0 ? ' selected' : ''}>${n.toFixed(1)}</option>`).join('')}</select>
       <span class="muted" style="font-size:.8rem">s/d</span>
-      <select id="skorMax" aria-label="Skor laporan maksimum">${[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((n) => `<option value="${n}"${n === 5 ? ' selected' : ''}>${n.toFixed(1)}</option>`).join('')}</select>
+      <select id="skorMax" hidden aria-label="Skor laporan maksimum">${[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((n) => `<option value="${n}"${n === 5 ? ' selected' : ''}>${n.toFixed(1)}</option>`).join('')}</select>
       <label class="sw"><input type="checkbox" id="hide"> Sembunyikan selesai</label>
       <button type="button" id="resetFilter" class="btn sm">Reset filter</button>
         </div>
       </details>
     </div>
   </div>
-  <p class="f2-petunjuk">Nilai diambil dari data yang memang tertulis. <b>tanpa tanggal</b> dan <b>tidak dicantumkan</b> berarti sumbernya tidak menyebutkan — tidak ditebak. Umur &gt; 14 hari ditandai ⚠ dan disarankan <code>Discarded</code>. Saat filter gaji atau umur aktif, baris tanpa data ikut disembunyikan.</p>
+  <details class="lanjutan legenda"><summary>Arti skor, status, dan legitimasi</summary><p class="f2-petunjuk"><b>Skor</b> (0–5) = kecocokan CV dengan lowongan, bukan peluang diterima. <b>Status</b> = tahap lamaran Anda; “Baru” = hasil scan yang belum dilamar. <b>Legitimasi</b> = seberapa terkonfirmasi iklan itu asli; “Belum dinilai” berarti belum dicek, jadi periksa sendiri sebelum melamar. “tanpa tanggal” dan “tidak dicantumkan” = sumber tidak menyebutkan, tidak ditebak. Umur &gt; 14 hari ditandai ⚠ dan disarankan dibuang.</p></details>
   <div class="wrap">
     <table class="main">
       <thead><tr><th>Dilamar</th><th>Lowongan</th><th>Wilayah</th><th>Gaji/bulan</th><th>Diposting</th><th>Ditemukan</th><th>Umur</th><th>Sumber</th><th title="Skor laporan untuk baris dinilai; skor cepat untuk hasil scan">Skor</th><th>Status</th><th>CV dipakai</th><th>Berkas</th><th>Legitimasi</th><th>Aksi</th></tr></thead>
@@ -2148,7 +2134,7 @@ ${peringatanHtml}
 ${tableRows}
       </tbody>
     </table>
-    <div id="kosong" class="kosong" hidden>Tidak ada lowongan yang cocok. Ubah kata kunci atau matikan filter di atas.</div>
+    <div id="kosong" class="kosong"${semuaBaris.length ? ' hidden' : ''}>${semuaBaris.length ? 'Tidak ada lowongan yang cocok. Ubah kata kunci atau matikan filter di atas.' : 'Belum ada lowongan. Pasang CV (langkah 1), lalu tekan “Cari lowongan” (langkah 2).'}</div>
   </div>
   <div class="halaman">
     <label>Baris per halaman <select id="perHalaman" aria-label="Baris per halaman"><option value="25">25</option><option value="50">50</option><option value="100">100</option><option value="0">Semua</option></select></label>
@@ -2156,14 +2142,58 @@ ${tableRows}
     <span id="halInfo" class="muted">Halaman 1 / 1</span>
     <button type="button" id="halBerikut" class="btn sm">Berikutnya →</button>
   </div>
-  <p class="foot"><span>Menampilkan <strong id="jumlahTampil">${semuaBaris.length}</strong> dari ${semuaBaris.length} lowongan</span><span>Filter skor hanya untuk baris yang punya laporan; hasil scan tetap tampil. Centang kotak untuk menandai sudah dilamar — tidak ada lamaran yang dikirim otomatis.</span></p>
+  <p class="foot"><span>Menampilkan <strong id="jumlahTampil">${semuaBaris.length}</strong> dari ${semuaBaris.length} lowongan</span><span>Centang kotak untuk menandai sudah dilamar. Pengiriman mengikuti mode di Antrean Lamaran (manual atau otomatis).</span></p>
+
 </section>
 
-<section class="detail-list" aria-label="Detail lowongan">
-  <h2>📄 Detail Lowongan &amp; Surat Lamaran</h2>
+<section class="detail-list" id="detail" aria-label="Detail lowongan">
+<details id="detailWadah" class="lanjutan"><summary><b>📄 Detail Lowongan &amp; Surat Lamaran</b> — buka untuk membaca dan menyalin surat tiap lowongan</summary>
   <p class="note">Surat lamaran disusun dari isi CV tiap lowongan, tanpa tambahan fakta. Baca ulang CV dan surat sebelum dikirim, dan cek bagian Legitimasi untuk lowongan yang belum terkonfirmasi.</p>
 ${details}
+</details>
 </section>
+
+<details class="lanjutan pengaturan" id="pengaturan">
+<summary>⚙️ Pengaturan lanjutan — profil, preset pencarian, suara</summary>
+<section class="panel profil-panel" aria-label="Profil lokal">
+  <div class="p-head">
+    <div>
+      <h2>👤 Profil Lokal</h2>
+      <p class="muted" style="margin:2px 0 0;font-size:.88rem">Profil memisahkan data (CV, lowongan, laporan) untuk orang atau tujuan berbeda. Kalau hanya untuk diri sendiri, abaikan.</p>
+    </div>
+    <div class="p-ctl"><span id="profilAktif" class="badge badge-neutral">${profilSekarang.ok ? esc(profilSekarang.profil.nama) : 'Profil tidak diketahui'}</span></div>
+  </div>
+  <details class="lanjutan">
+    <summary>Buka pengaturan profil lokal</summary>
+    <div id="profilDaftar" class="profil-daftar"><span class="muted" style="font-size:.85rem">Memuat daftar profil…</span></div>
+    <div class="profil-buat">
+      <input type="text" id="profilNamaBaru" placeholder="Nama profil baru" aria-label="Nama profil baru">
+      <button id="profilBuat" class="btn sm" type="button">Buat profil kosong</button>
+      <span id="profilStatus" class="profil-status" role="status" aria-live="polite"></span>
+    </div>
+    <p class="scan-catatan" style="margin:8px 0 0">Profil baru dimulai kosong: tidak ada CV, gaji, lokasi, pengalaman, atau skor yang disalin dari profil lain. Profil tidak dihapus otomatis supaya data tidak hilang.</p>
+  </details>
+</section>
+<details class="lanjutan" id="presetPanel">
+    <summary>Preset pencarian (opsional)</summary>
+    <div class="preset-panel" aria-label="Preset pencarian">
+      <div class="preset-judul">
+        <label class="k" for="namaPreset">Preset pencarian</label>
+        <span class="scan-catatan">Simpan pilihan wilayah, gaji, dan umur supaya bisa dipakai lagi. Tidak menjalankan scan dan tidak mengirim lamaran.</span>
+      </div>
+      <div class="preset-baris">
+        <input type="text" id="namaPreset" placeholder="Nama preset, misal: Riau 7 hari" aria-label="Nama preset">
+        <button id="presetSimpan" class="btn sm" type="button">Simpan preset ini</button>
+        <span id="presetStatus" class="preset-status" role="status" aria-live="polite"></span>
+      </div>
+      <div id="presetDaftar" class="preset-daftar"><span class="muted" style="font-size:.85rem">Belum ada preset tersimpan.</span></div>
+    </div>
+  </details>
+<details class="lanjutan"><summary>Suara (opsional)</summary>
+        <label class="sw" title="Bunyi alarm saat otomatisasi berhenti karena butuh jawaban atau dokumen tidak cocok"><input type="checkbox" id="suaraNotifikasi" checked> Audio Status</label>
+        <button id="ujiSuara" class="btn sm" type="button">Uji suara</button>
+      </details>
+</details>
 
 <div id="drawer" class="drawer" hidden>
   <div class="drawer-panel" role="dialog" aria-modal="true" aria-label="Ringkasan lowongan">
@@ -2249,9 +2279,15 @@ const cnt = () => {
   const dilamar = document.querySelectorAll('table.main tbody tr.done').length;
   const total = document.querySelectorAll('table.main tbody tr').length;
   document.getElementById('n').textContent = dilamar;
-  document.getElementById('belum').textContent = total - dilamar;
+  const tb = document.getElementById('totalBaris'); if (tb) tb.textContent = total;
   document.getElementById('progres').style.width = (total ? Math.round(dilamar * 100 / total) : 0) + '%';
 };
+cnt();
+document.querySelectorAll('.navatas a').forEach((a) => a.addEventListener('click', () => {
+  const el = document.querySelector(a.getAttribute('href'));
+  const d = el && (el.tagName === 'DETAILS' ? el : el.querySelector(':scope > details'));
+  if (d) d.open = true;
+}));
 document.querySelectorAll('td.ck input').forEach((cb) => {
   cb.addEventListener('change', async () => {
     const tr = cb.closest('tr');
@@ -2267,7 +2303,7 @@ document.querySelectorAll('td.ck input').forEach((cb) => {
         if (h && h.textContent.trim() === '✓ Dilamar otomatis') h.textContent = '';
       }
       tr.classList.toggle('done', cb.checked);
-      tr.querySelector('.st').textContent = cb.checked ? 'Applied' : (cb.dataset.scanCb ? 'Baru' : 'Evaluated');
+      tr.querySelector('.st').textContent = labelStatus(cb.checked ? 'Applied' : (cb.dataset.scanCb ? 'Baru' : 'Evaluated'));
       cnt();
       applyHide();
     } catch (e) { cb.checked = !cb.checked; alert('Gagal menyimpan: ' + e.message + '\\nPastikan halaman dibuka lewat http://127.0.0.1:${PORT}'); }
@@ -2431,7 +2467,7 @@ function tandaiOtomatis(num, status = 'Applied') {
   }
   tr.classList.add('done');
   const st = tr.querySelector('.st');
-  if (st) st.textContent = status;
+  if (st) st.textContent = labelStatus(status);
   const h = tr.querySelector('.hasil');
   if (h && !h.textContent.trim()) h.textContent = status === 'Applied' ? '✓ Dilamar otomatis' : '✓ Dilewati: ' + status;
   liveDilamar.add(String(num));
@@ -2674,7 +2710,7 @@ document.querySelectorAll('button.buka-detail').forEach((b) => {
       + '<p class="dr-link"><a href="' + d.detail + '" id="drDetail">Lihat detail lengkap &amp; surat ↓</a></p>'
       + '<p class="dr-catatan">Ringkasan ini hanya menampilkan data yang sudah ada di tabel. Tidak ada penilaian baru dan tidak ada lamaran yang dikirim.</p>';
     const dl = elF2('drDetail');
-    if (dl) dl.addEventListener('click', tutupDrawer);
+    if (dl) dl.addEventListener('click', () => { tutupDrawer(); const w = elF2('detailWadah'); if (w) w.open = true; });
     drawer.hidden = false;
   });
 });
@@ -3222,6 +3258,7 @@ function cvTampilStatus(st) {
 
   const sel = cvEl('cvPilihArsip');
   const daftar = st.arsip || [];
+  cvEl('cvKartuArsip').hidden = !daftar.length;
   if (!daftar.length) {
     sel.innerHTML = '<option value="">— belum ada versi tersimpan —</option>';
     cvEl('cvArsipMeta').textContent = 'Versi pertama dibuat otomatis saat CV diganti.';
@@ -3773,7 +3810,7 @@ async function tanganiRingkasan(req, res, u, mentah, paksa) {
         .replaceAll('__MODE_KIRIM_PENDEK__', escHtml(modePendek))
         .replaceAll('__MODE_KIRIM_TOOLTIP__', escHtml(modeTooltip))
         .replaceAll('__MODE_KIRIM_PANJANG__', modePanjang)
-        .replaceAll('__MODE_KIRIM_KONFIRMASI__', jsStr(modeKonfirmasi))
+        .replaceAll('__MODE_KIRIM_KONFIRMASI__', jsStr(modeKonfirmasi + ' Setiap lowongan memakai 1 kredit.'))
         .replaceAll('__SCAN_TERAKHIR__', JSON.stringify(bacaTerakhir(ROOT())).replace(/</g, '\\u003c'));
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store, must-revalidate' });
       return res.end(teks);
@@ -4404,7 +4441,7 @@ function halamanLogin(pesan = '', csrf = '', sukses = '') {
 <label for="sandi">Kata sandi</label>
 <input id="sandi" name="sandi" type="password" autocomplete="current-password" required>
 <button type="submit">Masuk</button>
-</form><p class="petunjuk">Belum punya akun? <a href="/daftar">Daftar gratis dengan email</a> — dapat 3 kredit trial setelah verifikasi.<br><a href="/lupa-sandi">Lupa kata sandi?</a></p>`,
+</form><p class="petunjuk">Belum punya akun? <a href="/daftar">Daftar dengan kode undangan</a> — dapat 3 kredit trial setelah verifikasi email.<br><a href="/lupa-sandi">Lupa kata sandi?</a></p>`,
   });
 }
 
@@ -4423,7 +4460,7 @@ function halamanDaftar(pesan = '', csrf = '') {
 <label for="sandi">Kata sandi</label>
 <input id="sandi" name="sandi" type="password" autocomplete="new-password" minlength="10" required>
 <button type="submit">Daftar &amp; kirim kode</button>
-</form><p class="petunjuk">Pendaftaran hanya untuk pemegang kode undangan. Satu email mendapat satu trial. Tanpa kartu pembayaran. ${
+</form><p class="petunjuk">Pendaftaran hanya untuk pemegang kode undangan. Belum punya kode? Minta ke orang yang mengundang Anda atau pengelola SiapLamar. Satu email mendapat satu trial. Tanpa kartu pembayaran. ${
     emailSiap
       ? 'Kode verifikasi dikirim ke email Anda. Periksa kotak masuk dan folder spam.'
       : 'Provider email belum dikonfigurasi, jadi kode verifikasi ditampilkan di halaman (mode uji).'
