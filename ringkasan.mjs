@@ -33,6 +33,7 @@ import { pratinjauEntri, simpanEntri, cekCv, skillGap } from './cv-entri.mjs';
 import { ekstrakTeksPdf, cvDariTeks } from './cv-pdf.mjs';
 import { daftarPreset, bacaPreset, simpanPreset, hapusPreset } from './scan-preset.mjs';
 import { bacaTargeting, simpanTargeting, ringkasanTargeting } from './targeting-cv.mjs';
+import { bacaTerakhir, simpanTerakhir } from './scan-terakhir.mjs';
 import { daftarProfil, bacaProfilAktif, buatProfilLokal, pakaiProfilLokal } from './profil-lokal.mjs';
 import { getCareerOpsRoot } from './path-resolver.mjs';
 import { denganKonteks, konteksAktif, rootAktif, rootPenggunaAktif, penggunaAktif, csrfAktif, tetapkanRoot } from './konteks-root.mjs';
@@ -860,6 +861,12 @@ const atributBaris = (r) => [
   `data-cari="${esc([r.num, r.company, r.role, r.lokasiTampil, r.wilayah, r.kota, r.sumber, r.cvDipakai].filter(Boolean).join(' ').toLowerCase())}"`,
 ].join(' ');
 
+const alasanCocok = (r) => {
+  const poin = (r.skorRincian || []).find((x) => x.label === 'Judul/peran');
+  const bukti = (poin && Array.isArray(poin.bukti) ? poin.bukti : []).slice(0, 2);
+  return bukti.length ? 'Cocok dari CV: ' + bukti.join(', ') : '';
+};
+
 const tableRows = semuaBaris.map((r) => {
   const kolomTengah = [
     `<td>${wilayahSel(r)}</td>`,
@@ -880,19 +887,22 @@ const tableRows = semuaBaris.map((r) => {
     const skor = r.skorCepat == null
       ? '<span class="badge badge-neutral">Belum dinilai</span>'
       : `<span class="skor ${skorKelas(r.skorCepat)}" title="Skor cepat berbasis bukti, bukan evaluasi resmi dan bukan peluang diterima">${r.skorCepat.toFixed(1)}</span><div class="muted" style="font-size:.72rem;margin-top:3px">${r.skorJumlahTerukur}/4 terukur</div>`;
+    const alasan = alasanCocok(r);
     return `<tr class="scan-baru${sudah ? ' done' : ''}" ${atributBaris(r)}>
   <td class="ck"><input type="checkbox"${sudah ? ' checked' : ''}${ditutup ? ' disabled' : ''} data-scan-cb="${esc(scanId)}" aria-label="Tandai hasil scan ${esc(scanId)} sudah dilamar" title="${ditutup ? 'Halaman tidak ditemukan, dilewati' : 'Centang otomatis setelah lamaran terkirim'}"></td>
   <td class="job">
     <div class="t"><strong>${esc(r.company)}</strong><span class="badge badge-scan">BARU</span></div>
     <div class="role">${esc(r.role)}</div>
+    ${alasan ? `<div class="cocok">${esc(alasan)}</div>` : ''}
+    ${r.cvScan ? '<div class="draft-badge">✓ Draf CV &amp; surat siap</div>' : ''}
   </td>
   ${kolomTengah}
   <td>${skor}</td>
   <td><span class="st ${sudah ? 'st-done' : ''}">${ditutup ? 'Discarded' : sudah ? 'Applied' : 'Baru'}</span></td>
   <td>${cvDipakai}</td>
   <td class="berkas">${[
-    r.cvScan ? chip(r.cvScan.href, 'CV PDF') : '',
-    r.suratScan ? chip(r.suratScan.href, /\.pdf$/i.test(r.suratScan.name) ? 'Surat PDF' : 'Surat HTML') : '',
+    r.cvScan ? chip(r.cvScan.href, 'Lihat draf CV') : '',
+    r.suratScan ? chip(r.suratScan.href, /\.pdf$/i.test(r.suratScan.name) ? 'Lihat surat' : 'Lihat surat') : '',
   ].filter(Boolean).join('') || '<span class="chip off">Belum ada</span>'}</td>
   <td><span class="legit neutral">Belum dinilai</span></td>
   <td class="aksi"><div class="aksi-baris">${r.url ? lnk(r.url, 'Buka lowongan') : dash}<button class="buka-detail" type="button" aria-label="Ringkasan lowongan">Detail</button></div><div class="hasil">${ditutup ? '✓ Dilewati: halaman tidak ditemukan' : sudah ? '✓ Dilamar otomatis' : ''}</div></td>
@@ -1184,8 +1194,15 @@ const html = `<!DOCTYPE html>
 
   /* Scan Panel */
   .scan { padding: 22px 26px; }
-  .scan-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 20px; align-items: start; margin-top: 16px; }
+  .scan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
   .scan-grid label.k { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-sec); margin-bottom: 6px; }
+  .scan-pemula { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+  .scan-pemula label.k { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-sec); margin-bottom: 6px; }
+  .scan-pemula select { width: 100%; }
+  #wilayahLanjutan { margin-top: 16px; }
+  #wilayahLanjutan > summary { color: var(--accent); font-size: 0.84rem; }
+  .target-cv .lanjutan { margin: 8px 0 0; }
+  @media (max-width: 760px) { .scan-pemula { grid-template-columns: 1fr; } }
   .scan select, .scan input[type=number] {
     font: inherit;
     font-size: 0.88rem;
@@ -1604,7 +1621,9 @@ const html = `<!DOCTYPE html>
     flex: 1 1 220px; min-width: 210px;
     padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md);
     background: var(--surface-soft); font-size: 0.86rem;
+    text-decoration: none; cursor: pointer; transition: border-color 0.15s ease, transform 0.15s ease;
   }
+  .onboarding-step:hover { border-color: var(--accent); transform: translateY(-1px); }
   .onboarding-step b { display: block; color: var(--ink); }
   .onboarding-step span { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
   .onboarding-step .n {
@@ -1613,6 +1632,8 @@ const html = `<!DOCTYPE html>
   }
   .onboarding-step.selesai { border-color: var(--ok-border); background: var(--ok-soft); }
   .onboarding-step.selesai .n { background: var(--ok); color: #fff; }
+  .draft-badge { display: inline-block; margin-top: 5px; font-size: 0.72rem; font-weight: 700; color: var(--ok); }
+  .cocok { font-size: 0.74rem; color: var(--muted); margin-top: 4px; line-height: 1.4; }
 
   /* Alat lanjutan: tersembunyi sampai pengguna membukanya */
   .lanjutan { border: 1px dashed var(--line); border-radius: var(--radius-md); padding: 6px 10px; margin: 8px 0; }
@@ -1747,9 +1768,9 @@ const html = `<!DOCTYPE html>
 </header>
 
 <section class="onboarding" aria-label="Panduan mulai">
-  <div class="onboarding-step" id="langkahCv"><span class="n">1</span><div><b>Isi CV Anda</b><span>Unggah PDF CV atau tempel teks, lalu pratinjau dan konfirmasi.</span></div></div>
-  <div class="onboarding-step ${scanRows.length ? 'selesai' : ''}"><span class="n">2</span><div><b>Pilih wilayah &amp; scan</b><span>Atur provinsi/kota, umur, gaji, lalu jalankan scan.</span></div></div>
-  <div class="onboarding-step ${appliedCount ? 'selesai' : ''}"><span class="n">3</span><div><b>Buka antrean &amp; lamar</b><span>__MODE_KIRIM_PENDEK__</span></div></div>
+  <a class="onboarding-step" id="langkahCv" href="#cv"><span class="n">1</span><div><b>Pasang CV</b><span>Unggah PDF; teks dibaca otomatis dan tetap Anda setujui.</span></div></a>
+  <a class="onboarding-step ${scanRows.length ? 'selesai' : ''}" href="#scan"><span class="n">2</span><div><b>Pilih wilayah &amp; gaji</b><span>Pekerjaan diambil dari CV. Ubah bila perlu.</span></div></a>
+  <a class="onboarding-step ${appliedCount ? 'selesai' : ''}" href="#hasil"><span class="n">3</span><div><b>Lihat hasil</b><span>Lowongan + draf CV dan surat sudah disiapkan. Anda yang kirim.</span></div></a>
 </section>
 
 <section class="stats" aria-label="Angka ringkas">
@@ -1780,7 +1801,7 @@ const html = `<!DOCTYPE html>
   </details>
 </section>
 
-<section class="panel cv" aria-label="CV saya">
+<section class="panel cv" id="cv" aria-label="CV saya">
   <div class="p-head">
     <div>
       <h2>🗂️ CV Saya</h2>
@@ -1907,40 +1928,58 @@ const html = `<!DOCTYPE html>
   </div>
 </section>
 
-<section class="panel scan" aria-label="Scan lowongan terbaru">
+<section class="panel scan" id="scan" aria-label="Scan lowongan terbaru">
   <div class="p-head">
     <div>
-      <h2>🔍 Scan Lowongan Terbaru</h2>
-      <p class="muted" style="margin:2px 0 0;font-size:.88rem">Pilih wilayah, rentang gaji, dan umur lowongan, lalu klik scan. Tidak perlu membuka OpenCode.</p>
+      <h2>🔍 Cari Lowongan</h2>
+      <p class="muted" style="margin:2px 0 0;font-size:.88rem">Pilih wilayah dan gaji. Kata kunci pekerjaan diambil otomatis dari CV Anda.</p>
     </div>
   </div>
-  <div class="scan-grid">
+  <div class="scan-pemula">
     <div>
-      <label class="k" for="pulau">Pulau / wilayah</label>
-      <select id="pulau"><option value="">— pilih pulau —</option>${WILAYAH.map((w) => `<option value="${esc(w.pulau)}">${esc(w.pulau)}</option>`).join('')}</select>
-      <div class="prov-list" id="provinsi" style="margin-top:8px"><span class="muted" style="font-size:.85rem">Pilih pulau dulu, lalu centang provinsi.</span></div>
-    </div>
-    <div>
-      <label class="k">Rentang gaji per bulan (Rp)</label>
-      <div class="skor-baris">
-        <input type="number" id="gajiMin" min="0" max="100000000" step="100000" value="3500000" aria-label="Gaji minimum per bulan">
-        <span>s/d</span>
-        <input type="number" id="gajiMax" min="0" max="100000000" step="100000" value="40000000" aria-label="Gaji maksimum per bulan">
-      </div>
+      <label class="k" for="gajiCepat">Gaji minimum per bulan</label>
+      <select id="gajiCepat" aria-label="Gaji minimum per bulan">
+        <option value="0">Semua gaji</option>
+        <option value="3000000">Mulai Rp 3 juta</option>
+        <option value="5000000">Mulai Rp 5 juta</option>
+        <option value="8000000">Mulai Rp 8 juta</option>
+        <option value="15000000">Mulai Rp 15 juta</option>
+        <option value="25000000">Mulai Rp 25 juta</option>
+        <option value="tersuai">Rentang khusus…</option>
+      </select>
       <p class="scan-catatan" style="margin:6px 0 0">Hanya gaji yang memang tertulis di iklan yang dipakai. Lowongan tanpa gaji tetap tampil dan ditandai.</p>
-      <label class="k" style="margin-top:14px">Umur lowongan (tanggal unggah)</label>
-      <div class="umur" id="umur">
-        <button type="button" data-umur="today">Hari ini</button>
-        <button type="button" data-umur="3">3 hari</button>
-        <button type="button" data-umur="7" class="aktif">7 hari</button>
-        <button type="button" data-umur="14">14 hari</button>
-      </div>
     </div>
     <div>
-      <label class="k">Ringkasan pilihan</label>
-      <div id="ringkasanPilihan" class="muted" style="font-size:.86rem;line-height:1.6">Belum ada provinsi dipilih.</div>
+      <label class="k">Wilayah yang dicari</label>
+      <div id="ringkasanPilihan" class="muted" style="font-size:.86rem;line-height:1.6">Seluruh Indonesia.</div>
+      <button id="bukaWilayah" class="btn sm" type="button" style="margin-top:8px">Pilih provinsi &amp; kota</button>
     </div>
   </div>
+
+  <details id="wilayahLanjutan" class="lanjutan">
+    <summary>Atur wilayah, rentang gaji, dan umur lowongan</summary>
+    <div class="scan-grid">
+      <div>
+        <label class="k" for="pulau">Pulau / wilayah</label>
+        <select id="pulau"><option value="">— pilih pulau —</option>${WILAYAH.map((w) => `<option value="${esc(w.pulau)}">${esc(w.pulau)}</option>`).join('')}</select>
+        <div class="prov-list" id="provinsi" style="margin-top:8px"><span class="muted" style="font-size:.85rem">Pilih pulau dulu, lalu centang provinsi.</span></div>
+      </div>
+      <div>
+        <label class="k">Rentang gaji per bulan (Rp)</label>
+        <div class="skor-baris">
+          <input type="number" id="gajiMin" min="0" max="100000000" step="100000" value="0" aria-label="Gaji minimum per bulan">
+          <span>s/d</span>
+          <input type="number" id="gajiMax" min="0" max="100000000" step="100000" value="100000000" aria-label="Gaji maksimum per bulan">
+        </div>
+        <label class="k" style="margin-top:14px">Umur lowongan (tanggal unggah)</label>
+        <div class="umur" id="umur">
+          <button type="button" data-umur="today">Hari ini</button>
+          <button type="button" data-umur="3">3 hari</button>
+          <button type="button" data-umur="7" class="aktif">7 hari</button>
+          <button type="button" data-umur="14">14 hari</button>
+        </div>
+      </div>
+    </div>
 
   <div class="kota-panel">
     <label class="k">Wilayah di provinsi yang dipilih</label>
@@ -1951,33 +1990,41 @@ const html = `<!DOCTYPE html>
       <input type="text" id="kotaLain" placeholder="Contoh: Siak, Bangkinang, Rengat" aria-label="Wilayah lain di luar daftar">
     </div>
   </div>
+  </details>
 
   <div class="target-cv" aria-label="Target dari CV">
-    <label class="k" for="kataKunci">Kata kunci jabatan (diisi dari CV, bisa diubah)</label>
-    <div class="target-baris">
-      <input type="text" id="kataKunci" placeholder="Contoh: Staf Administrasi, Data Entry" aria-label="Kata kunci jabatan">
-      <button id="targetSimpan" class="btn sm" type="button">Simpan target</button>
-    </div>
-    <p id="targetSumber" class="scan-catatan" style="margin:8px 0 0" role="status" aria-live="polite">Membaca CV yang sedang aktif…</p>
+    <label class="k">Pekerjaan yang dicari</label>
+    <p id="targetSumber" class="scan-catatan" style="margin:0" role="status" aria-live="polite">Membaca CV yang sedang aktif…</p>
+    <details class="lanjutan" id="targetUbah">
+      <summary>Ubah kata kunci secara manual (opsional)</summary>
+      <label class="k" for="kataKunci" style="margin-top:8px">Kata kunci jabatan</label>
+      <div class="target-baris">
+        <input type="text" id="kataKunci" placeholder="Contoh: Staf Administrasi, Data Entry" aria-label="Kata kunci jabatan">
+        <button id="targetSimpan" class="btn sm" type="button">Simpan target</button>
+      </div>
+    </details>
   </div>
 
   <div class="scan-aksi">
-    <button id="scanBaru" class="scan-btn" type="button">Scan lowongan terbaru</button>
+    <button id="scanBaru" class="scan-btn" type="button">Cari lowongan</button>
     <span class="scan-catatan">Lowongan bertanggal &gt;14 hari dibuang; yang tanpa tanggal tetap tampil dan ditandai.</span>
   </div>
 
-  <div class="preset-panel" aria-label="Preset pencarian">
-    <div class="preset-judul">
-      <label class="k" for="namaPreset">Preset pencarian</label>
-      <span class="scan-catatan">Simpan pilihan wilayah, gaji, dan umur supaya bisa dipakai lagi. Tidak menjalankan scan dan tidak mengirim lamaran.</span>
+  <details class="lanjutan" id="presetPanel">
+    <summary>Preset pencarian (opsional)</summary>
+    <div class="preset-panel" aria-label="Preset pencarian">
+      <div class="preset-judul">
+        <label class="k" for="namaPreset">Preset pencarian</label>
+        <span class="scan-catatan">Simpan pilihan wilayah, gaji, dan umur supaya bisa dipakai lagi. Tidak menjalankan scan dan tidak mengirim lamaran.</span>
+      </div>
+      <div class="preset-baris">
+        <input type="text" id="namaPreset" placeholder="Nama preset, misal: Riau 7 hari" aria-label="Nama preset">
+        <button id="presetSimpan" class="btn sm" type="button">Simpan preset ini</button>
+        <span id="presetStatus" class="preset-status" role="status" aria-live="polite"></span>
+      </div>
+      <div id="presetDaftar" class="preset-daftar"><span class="muted" style="font-size:.85rem">Belum ada preset tersimpan.</span></div>
     </div>
-    <div class="preset-baris">
-      <input type="text" id="namaPreset" placeholder="Nama preset, misal: Riau 7 hari" aria-label="Nama preset">
-      <button id="presetSimpan" class="btn sm" type="button">Simpan preset ini</button>
-      <span id="presetStatus" class="preset-status" role="status" aria-live="polite"></span>
-    </div>
-    <div id="presetDaftar" class="preset-daftar"><span class="muted" style="font-size:.85rem">Belum ada preset tersimpan.</span></div>
-  </div>
+  </details>
 
   <div id="scanStatus" class="scan-status" role="status" aria-live="polite"></div>
   <div id="scanHasil" class="scan-hasil" hidden></div>
@@ -1986,22 +2033,25 @@ const html = `<!DOCTYPE html>
 <section class="panel otomatis" aria-label="Lamar otomatis">
   <div class="p-head">
     <div>
-      <h2>🚀 Otomatisasi Lamaran</h2>
+      <h2>🚀 Antrean Lamaran</h2>
       <p id="batchStatus" class="muted">__MODE_KIRIM_PANJANG__</p>
     </div>
-    <div class="p-ctl">
+  </div>
+  <details class="lanjutan" id="batchPanel">
+    <summary>Buka antrean lamaran — __MODE_KIRIM_PENDEK__</summary>
+    <div class="p-ctl" style="margin-top:10px">
       <details class="lanjutan"><summary>Suara (opsional)</summary>
         <label class="sw" title="Bunyi alarm saat otomatisasi berhenti karena butuh jawaban atau dokumen tidak cocok"><input type="checkbox" id="suaraNotifikasi" checked> Audio Status</label>
         <button id="ujiSuara" class="btn sm" type="button">Uji suara</button>
       </details>
       <button id="lamarSemua" class="batch">Lamar Semua Siap (${siapHitung})</button>
     </div>
-  </div>
-  <div id="batchAlert" class="batch-alert" role="status" aria-live="assertive"></div>
-  <pre id="batchLog" class="batchlog" hidden></pre>
+    <div id="batchAlert" class="batch-alert" role="status" aria-live="assertive"></div>
+    <pre id="batchLog" class="batchlog" hidden></pre>
+  </details>
 </section>
 
-<section class="panel" aria-label="Daftar lowongan">
+<section class="panel" id="hasil" aria-label="Daftar lowongan">
   <div class="tbar">
     <h2>📋 Daftar Lowongan</h2>
     <div class="tools f2">
@@ -2058,6 +2108,7 @@ ${details}
     <div id="drawerIsi"></div>
   </div>
 </div>
+<script id="scanTerakhir" type="application/json">__SCAN_TERAKHIR__</script>
 </main>
 <script>
 /* ===== Profil lokal: satu server, satu root aktif ===== */
@@ -2668,12 +2719,14 @@ function isiKota() {
     semuaCb.addEventListener('change', () => {
       if (semuaCb.checked) kotaCbs.forEach((i) => { i.checked = false; });
       segarkanRingkasan();
+      simpanPilihanTerakhir();
     });
     kotaCbs.forEach((i) => i.addEventListener('change', () => {
       if (i.checked) semuaCb.checked = false;
       // Tidak ada kota tersisa → kembali ke seluruh wilayah.
       if (!kotaCbs.some((x) => x.checked)) semuaCb.checked = true;
       segarkanRingkasan();
+      simpanPilihanTerakhir();
     }));
   });
   segarkanRingkasan();
@@ -2691,20 +2744,123 @@ function isiProvinsi() {
   document.getElementById('pilihSemua').addEventListener('change', (e) => {
     provEl.querySelectorAll('.prov input').forEach((i) => { i.checked = e.target.checked; });
     isiKota();
+    simpanPilihanTerakhir();
   });
-  provEl.querySelectorAll('.prov input').forEach((i) => i.addEventListener('change', isiKota));
+  provEl.querySelectorAll('.prov input').forEach((i) => i.addEventListener('change', () => {
+    isiKota();
+    simpanPilihanTerakhir();
+  }));
   isiKota();
 }
+/* ===== Pilihan terakhir: preferensi pencarian, bukan fakta CV =====
+   Disimpan otomatis supaya gaji/umur tidak hilang setelah refresh. Wilayah
+   mengikuti target dari CV yang disimpan saat scan pertama.
+   Tidak menulis cv.md, tidak menilai lowongan, tidak mengirim lamaran. */
+const SCAN_TERAKHIR = (() => {
+  try { return JSON.parse(document.getElementById('scanTerakhir')?.textContent || '{}') || {}; }
+  catch { return {}; }
+})();
+const gajiCepatEl = document.getElementById('gajiCepat');
+const wilayahLanjutanEl = document.getElementById('wilayahLanjutan');
+const GAJI_CEPAT = ['0', '3000000', '5000000', '8000000', '15000000', '25000000'];
+let antreanSimpan = Promise.resolve();
+function simpanPilihanTerakhir() {
+  const badan = {
+    gajiMin: document.getElementById('gajiMin').value,
+    gajiMax: document.getElementById('gajiMax').value,
+    umur: umurDipilih,
+    provinsi: provinsiDipilih(),
+    kota: kotaDipilih(),
+    kotaLain: kotaLainDipilih(),
+  };
+  antreanSimpan = antreanSimpan
+    .then(() => fetch('/scan-terakhir/simpan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(badan),
+    }).then((r) => r.json()).catch(() => null))
+    .then(() => undefined);
+  return antreanSimpan;
+}
+function sinkronGajiCepat() {
+  const min = String(document.getElementById('gajiMin').value || '').trim();
+  const max = Number(document.getElementById('gajiMax').value || 0);
+  gajiCepatEl.value = GAJI_CEPAT.includes(min) && max === 100000000 ? min : 'tersuai';
+}
+function terapkanGajiCepat() {
+  if (gajiCepatEl.value === 'tersuai') {
+    wilayahLanjutanEl.open = true;
+    document.getElementById('gajiMin').focus();
+    return;
+  }
+  document.getElementById('gajiMin').value = gajiCepatEl.value;
+  document.getElementById('gajiMax').value = '100000000';
+  segarkanRingkasan();
+  simpanPilihanTerakhir();
+}
+gajiCepatEl.addEventListener('change', terapkanGajiCepat);
+document.getElementById('bukaWilayah').addEventListener('click', () => {
+  wilayahLanjutanEl.open = true;
+  wilayahLanjutanEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 pulauEl.addEventListener('change', isiProvinsi);
 document.querySelectorAll('#umur button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('#umur button').forEach((x) => x.classList.remove('aktif'));
   b.classList.add('aktif');
   umurDipilih = b.dataset.umur;
   segarkanRingkasan();
+  simpanPilihanTerakhir();
 }));
-kotaLainEl.addEventListener('input', segarkanRingkasan);
+kotaLainEl.addEventListener('input', () => { segarkanRingkasan(); simpanPilihanTerakhir(); });
 isiProvinsi();
-['gajiMin', 'gajiMax'].forEach((id) => document.getElementById(id).addEventListener('input', segarkanRingkasan));
+['gajiMin', 'gajiMax'].forEach((id) => document.getElementById(id).addEventListener('input', () => {
+  sinkronGajiCepat();
+  segarkanRingkasan();
+  simpanPilihanTerakhir();
+}));
+// Wilayah tersimpan dipasang lebih dulu: terapkanTargetKeForm() sengaja
+// berhenti bila provinsi sudah dipilih, jadi target dari CV tidak menimpa
+// pilihan terakhir pengguna. Kata kunci dari CV tetap dimuat.
+function terapkanWilayahTersimpan(w) {
+  const prov = (Array.isArray(w.provinsi) ? w.provinsi : []).filter((n) => !!dataProvinsi(n));
+  if (!prov.length) return;
+  const hitung = {};
+  for (const pul of WILAYAH_UI) {
+    const n = (pul.provinsi || []).filter((x) => prov.includes(x.nama)).length;
+    if (n) hitung[pul.pulau] = n;
+  }
+  const pulau = Object.entries(hitung).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (!pulau) return;
+  pulauEl.value = pulau;
+  isiProvinsi();
+  provEl.querySelectorAll('.prov input').forEach((i) => { i.checked = prov.includes(i.value); });
+  const semuaProv = document.getElementById('pilihSemua');
+  if (semuaProv) semuaProv.checked = [...provEl.querySelectorAll('.prov input')].every((i) => i.checked);
+  isiKota();
+  const pilihKota = w.kota || {};
+  kotaEl.querySelectorAll('.kota-grup').forEach((g) => {
+    const dipilih = new Set(pilihKota[g.dataset.prov] || []);
+    const semuaCb = g.querySelector('input[data-semua]');
+    [...g.querySelectorAll('.kota-chip input')].forEach((i) => { i.checked = dipilih.has(i.value); });
+    semuaCb.checked = ![...g.querySelectorAll('.kota-chip input')].some((i) => i.checked);
+  });
+  const lain = (Array.isArray(w.kotaLain) ? w.kotaLain : []).join(', ');
+  if (lain) kotaLainEl.value = lain;
+  segarkanRingkasan();
+}
+(function terapkanPilihanTerakhir() {
+  terapkanWilayahTersimpan(SCAN_TERAKHIR);
+  const gm = Number(SCAN_TERAKHIR.gajiMin);
+  const gx = Number(SCAN_TERAKHIR.gajiMax);
+  if (Number.isFinite(gm) && gm >= 0 && gm <= 100000000) document.getElementById('gajiMin').value = String(gm);
+  if (Number.isFinite(gx) && gx >= 0 && gx <= 100000000) document.getElementById('gajiMax').value = String(gx);
+  if (['today', '3', '7', '14'].includes(String(SCAN_TERAKHIR.umur))) {
+    umurDipilih = String(SCAN_TERAKHIR.umur);
+    document.querySelectorAll('#umur button').forEach((b) => b.classList.toggle('aktif', b.dataset.umur === umurDipilih));
+  }
+  sinkronGajiCepat();
+  segarkanRingkasan();
+})();
 
 /* ===== Target dari CV: kata kunci & wilayah awal =====
    Sumbernya cv.md profil yang sedang aktif. Bila pengguna pernah menyimpan
@@ -3339,6 +3495,23 @@ document.getElementById('scanBaru').addEventListener('click', async () => {
   const kotaNama = Object.keys(kota).reduce((a, k) => a.concat(kota[k]), []);
   tombol.disabled = true;
   tombol.textContent = 'Memindai...';
+  // Simpan preferensi dan target lebih dulu supaya pilihan tidak hilang saat
+  // halaman di-refresh. Kegagalan menyimpan hanya dilaporkan, tidak membatalkan
+  // scan dan tidak mengubah CV.
+  let catatanSimpan = '';
+  try {
+    await simpanPilihanTerakhir();
+    const kata = kataKunciDipilih();
+    if (kata.length) {
+      const t = await fetch('/targeting-cv/simpan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kataKunci: kata, provinsi, kota, kotaLain }),
+      }).then((x) => x.json());
+      if (!t.ok) catatanSimpan = ' Target belum tersimpan: ' + (t.error || 'tidak diketahui') + '.';
+    }
+  } catch (e) {
+    catatanSimpan = ' Preferensi belum tersimpan: ' + e.message + '.';
+  }
   const rincianScan = kotaNama.length
     ? '(' + kotaNama.slice(0, 4).join(', ') + (kotaNama.length > 4 ? ', …' : '') + ')'
     : '(seluruh wilayah)';
@@ -3359,7 +3532,7 @@ document.getElementById('scanBaru').addEventListener('click', async () => {
     const j = await r.json();
     if (!j.ok) { status.textContent = 'Gagal: ' + (j.error || 'tidak diketahui'); return; }
     let pesan = 'Selesai: ' + j.ditambahkan + ' lowongan baru dari ' + Number(j.ditemukan || 0).toLocaleString('id-ID')
-      + ' yang ditemukan (' + j.dipindai + ' board dipindai).';
+      + ' yang ditemukan (' + j.dipindai + ' board dipindai).' + catatanSimpan;
     if (j.gajiMin || j.gajiMax) {
       const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
       pesan += ' Gaji ' + rupiah(j.gajiMin) + '–' + rupiah(j.gajiMax) + '/bulan (yang tanpa gaji tetap tampil dan ditandai).';
@@ -3399,7 +3572,7 @@ document.getElementById('scanBaru').addEventListener('click', async () => {
     status.textContent = 'Gagal menghubungi server: ' + e.message;
   } finally {
     tombol.disabled = false;
-    tombol.textContent = 'Scan lowongan terbaru';
+    tombol.textContent = 'Cari lowongan';
   }
 });
 
@@ -3537,7 +3710,8 @@ async function tanganiRingkasan(req, res, u, mentah, paksa) {
         .replaceAll('__MODE_KIRIM_PENDEK__', escHtml(modePendek))
         .replaceAll('__MODE_KIRIM_TOOLTIP__', escHtml(modeTooltip))
         .replaceAll('__MODE_KIRIM_PANJANG__', modePanjang)
-        .replaceAll('__MODE_KIRIM_KONFIRMASI__', jsStr(modeKonfirmasi));
+        .replaceAll('__MODE_KIRIM_KONFIRMASI__', jsStr(modeKonfirmasi))
+        .replaceAll('__SCAN_TERAKHIR__', JSON.stringify(bacaTerakhir(ROOT())).replace(/</g, '\\u003c'));
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store, must-revalidate' });
       return res.end(teks);
     } catch (e) {
@@ -3883,6 +4057,20 @@ async function tanganiRingkasan(req, res, u, mentah, paksa) {
         .catch((e) => { setBatchState({ ...batchState(), berjalan: false, selesai: true, pesan: 'Gagal: ' + e.message }); });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(batchState()));
+    });
+    return;
+  }
+  if (req.method === 'POST' && u === '/scan-terakhir/simpan') {
+    let b = '';
+    req.on('data', (d) => { b += d; });
+    req.on('end', () => {
+      let o = {};
+      try { o = b ? JSON.parse(b) : {}; } catch { o = {}; }
+      let out;
+      try { out = simpanTerakhir(ROOT(), o); }
+      catch (e) { out = { ok: false, error: e.message }; }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify(out));
     });
     return;
   }
