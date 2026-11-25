@@ -54,26 +54,77 @@ function bacaCv() {
 
   const summary = bersih(sec(/summary|ringkasan/i).replace(/\n+/g, ' '));
 
-  // Pengalaman: ### Perusahaan -- Lokasi / **Jabatan** / tanggal / - butir
+  // Pengalaman: dua konvensi yang dibaca:
+  //   ### Perusahaan -- Lokasi / **Jabatan** / tanggal / - butir
+  //   ### Perusahaan -- Lokasi / ### Jabatan (Bulan Tahun — Bulan Tahun) / - butir
+  // Konvensi kedua umum pada CV hasil unggah PDF. Tanpa pengenalan ini,
+  // setiap baris ### Jabatan (tanggal) salah dibaca sebagai perusahaan baru
+  // dan payload ditolak karena role kosong.
   const experience = [];
   const expBody = sec(/^(work experience|experience|pengalaman)/i);
+  const headingEntri = (head) => {
+    const bertanggal = head.match(/^(.*?)\s*\(([^)]*(?:19|20)\d{2}[^)]*)\)\s*$/);
+    if (bertanggal) {
+      const depan = bersih(bertanggal[1]);
+      const potong = depan.split(/\s+(?:--|—|–)\s+/);
+      const adaPerusahaan = potong.length > 1;
+      return {
+        company: adaPerusahaan ? bersih(potong[0]) : '',
+        role: adaPerusahaan ? bersih(potong.slice(1).join(' — ')) : depan,
+        dates: bersih(bertanggal[2]),
+        jabatan: true,
+      };
+    }
+    const lepasTanggal = head.replace(/\([^)]*\)/g, '');
+    const pisah = lepasTanggal.split(/\s+(?:--|—|–|-)\s+/);
+    return {
+      company: bersih(pisah[0]),
+      role: '',
+      location: bersih(pisah.slice(1).join(' - ')),
+      dates: '',
+      jabatan: false,
+    };
+  };
+  let entri = null;
   for (const blok of expBody.split(/^###\s+/m).slice(1)) {
     const baris = blok.split(/\r?\n/);
-    const head = bersih(baris[0]);
-    const pisah = head.split(/\s+(?:--|—|–|-)\s+/);
-    const company = bersih(pisah[0]);
-    const location = bersih(pisah.slice(1).join(' - '));
-    let role = '';
-    let dates = '';
-    const bullets = [];
-    for (const raw of baris.slice(1)) {
-      const l = bersih(raw);
-      if (!l) continue;
-      if (!role && /^\*\*.+\*\*$/.test(l)) { role = l.replace(/^\*\*|\*\*$/g, '').trim(); continue; }
-      if (!dates && !/^- /.test(l) && /\d{4}/.test(l)) { dates = l; continue; }
-      if (/^[-*]\s+/.test(l)) bullets.push(l.replace(/^[-*]\s+/, '').trim());
+    const h = headingEntri(bersih(baris[0]));
+    if (h.jabatan) {
+      // Jabatan yang mengikuti kepala perusahaan mengisi entri itu, bukan
+      // membuat entri baru dengan company kosong.
+      const sebelumnya = [...experience].reverse().find((e) => !e.role && !(e.bullets || []).length);
+      if (sebelumnya) {
+        sebelumnya.role = h.role || 'tidak dicantumkan';
+        sebelumnya.dates = h.dates || sebelumnya.dates;
+        if (h.company) sebelumnya.company = h.company;
+        entri = sebelumnya;
+      } else {
+        entri = {
+          company: h.company || 'tidak dicantumkan',
+          role: h.role || 'tidak dicantumkan',
+          location: '', dates: h.dates, bullets: [],
+        };
+        experience.push(entri);
+      }
+    } else {
+      entri = {
+        company: h.company || 'tidak dicantumkan',
+        role: '', location: h.location || '', dates: '', bullets: [],
+      };
+      experience.push(entri);
     }
-    if (company) experience.push({ company, role, location, dates, bullets });
+    for (const raw of baris.slice(1)) {
+      const l = bersih(raw).replace(/[\uF0B7\uF0A7]/g, '');
+      if (!l) continue;
+      const jabatan = l.match(/^\*\*(.+?)\*\*(?:\s*[·|,—–-]\s*(.+))?$/);
+      if (!entri.role && jabatan) {
+        entri.role = bersih(jabatan[1]);
+        if (jabatan[2] && !entri.dates) entri.dates = bersih(jabatan[2]);
+        continue;
+      }
+      if (!entri.dates && !/^[-*]\s+/.test(l) && /\d{4}/.test(l)) { entri.dates = l; continue; }
+      if (/^[-*]\s+/.test(l)) entri.bullets.push(l.replace(/^[-*]\s+/, '').trim());
+    }
   }
 
   // Pendidikan: butir **Judul**, Lembaga (tahun) [— keterangan]

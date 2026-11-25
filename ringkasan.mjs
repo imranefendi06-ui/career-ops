@@ -514,6 +514,32 @@ let profilSkor = null;
 try { profilSkor = bacaProfilSkor(ROOT()); }
 catch (e) { console.error('config/profile.yml tidak bisa dibaca untuk skor cepat: ' + e.message); }
 
+let preferensiScan = null;
+try { preferensiScan = bacaTerakhir(ROOT()); }
+catch (e) { console.error('scan-terakhir.json tidak bisa dibaca untuk skor cepat: ' + e.message); }
+
+// Preferensi yang benar-benar diisi pengguna melengkapi field profil yang
+// kosong. Nilai bawaan "Semua gaji" (0–100000000) sengaja tidak dipakai:
+// itu bukan pernyataan target dan akan membuat setiap gaji tampak cocok.
+const profilSkorDipakai = (() => {
+  const p = { ...(profilSkor || { peran: [], gajiMin: 0, gajiMax: 0, gajiMinimum: 0, lokasi: '' }) };
+  const t = preferensiScan;
+  if (t && !(p.gajiMax > 0) && t.gajiMax > 0 && t.gajiMax < 100000000) {
+    p.gajiMin = t.gajiMin;
+    p.gajiMax = t.gajiMax;
+    p.gajiMinimum = t.gajiMin;
+  }
+  if (t && !p.lokasi) {
+    const wilayah = [
+      ...(t.provinsi || []),
+      ...Object.values(t.kota || {}).flat(),
+      ...(t.kotaLain || []),
+    ].filter(Boolean);
+    if (wilayah.length) p.lokasi = [...new Set(wilayah)].join(', ');
+  }
+  return p;
+})();
+
 const slugScan = (s) => String(s || '').toLowerCase().normalize('NFKD')
   .replace(/[^a-z0-9]+/g, '-').replace(/[0-9]+/g, '')
   .replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 36) || 'lowongan';
@@ -544,7 +570,7 @@ for (const r of scanRows) {
   try {
     const cepat = skorCepat({
       judul: r.role, jdText: r.jdText || '', lokasi: r.location, gaji: r.gaji,
-      cv: cvScan, profil: profilSkor, kompetensi: payloadScan?.competencies || [],
+      cv: cvScan, profil: profilSkorDipakai, kompetensi: payloadScan?.competencies || [],
     });
     r.skorCepat = cepat.skor;
     r.skorRincian = cepat.rincian;
@@ -1023,6 +1049,37 @@ const contohCvHtml = CONTOH_CV.filter((c) => contohCvTeks[c.id]).map((c) => `
     </div>
   </div>`).join('');
 
+/* ---------- Data yang belum lengkap dan dampaknya pada draf/skor ---------- */
+const polaContohCv = /\((?:posisi|isi ringkasan|nama anda|job title|ringkasan)/i;
+const cvContoh = !cvScan || polaContohCv.test(`${cvScan.candidate?.name || ''} ${cvScan.summary || ''}`);
+const jabatanKosong = Boolean(cvScan?.experience?.length
+  && cvScan.experience.every((e) => !String(e.role || '').trim()));
+const targetKosong = !profilSkorDipakai.peran?.length
+  && !(profilSkorDipakai.gajiMax > 0)
+  && !String(profilSkorDipakai.lokasi || '').trim();
+const gagalCv = scanGagal.filter((s) => /: CV \(/.test(s));
+const peringatanData = [];
+if (!cvScan) {
+  peringatanData.push('cv.md belum bisa dibaca, sehingga draf CV dan skor cepat belum bisa dibuat.');
+} else if (cvContoh) {
+  peringatanData.push('CV masih berisi teks contoh seperti (Posisi). Isi dengan data Anda sendiri lewat pratinjau CV sebelum melamar.');
+}
+if (jabatanKosong) {
+  peringatanData.push('Jabatan pada pengalaman belum terbaca dari cv.md, sehingga PDF draf CV belum bisa dibuat.');
+}
+if (targetKosong) {
+  peringatanData.push('Target peran, gaji, dan wilayah belum terisi. Skor cepat hanya memakai komponen yang datanya ada, jadi angka 1.0 bukan peluang diterima.');
+}
+if (gagalCv.length) {
+  peringatanData.push(`Draf CV gagal dibuat untuk ${gagalCv.length} lowongan. Contoh: ${gagalCv[0].slice(0, 140)}`);
+}
+const peringatanHtml = peringatanData.length
+  ? `<section class="panel data-warning" role="status" aria-live="polite">
+    <h2>⚠️ Periksa data sebelum melamar</h2>
+    <ul>${peringatanData.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+  </section>`
+  : '';
+
 const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1336,6 +1393,10 @@ const html = `<!DOCTYPE html>
   button.scan-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
   button.scan-btn:disabled { opacity: 0.6; cursor: wait; }
   .scan-catatan { font-size: 0.8rem; color: var(--muted); }
+  .data-warning { margin-top: 16px; border-color: #d97706; background: #fffbeb; }
+  .data-warning h2 { font-size: 1rem; color: #92400e; }
+  .data-warning ul { margin: 6px 0 0; padding-left: 20px; }
+  .data-warning li { font-size: 0.86rem; color: #78350f; }
   .scan-status { margin-top: 12px; font-size: 0.86rem; font-weight: 600; color: var(--accent); }
   .scan-hasil { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
   .scan-hasil ul { margin: 6px 0 0; padding-left: 18px; }
@@ -1780,6 +1841,8 @@ const html = `<!DOCTYPE html>
   <div class="stat"><span class="k">Hasil Scan Baru</span><span class="v">${scanRows.length}</span></div>
   <div class="stat" title="__MODE_KIRIM_TOOLTIP__"><span class="k">Siap Diproses</span><span class="v" style="color:var(--accent)">${siapHitung}</span></div>
 </section>
+
+${peringatanHtml}
 
 <section class="panel profil-panel" aria-label="Profil lokal">
   <div class="p-head">
